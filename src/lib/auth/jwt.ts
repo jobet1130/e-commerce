@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies as nextCookies } from "next/headers";
 
-type TokenPayload = {
+export type TokenPayload = {
   userId: string;
   email: string;
   role: string;
