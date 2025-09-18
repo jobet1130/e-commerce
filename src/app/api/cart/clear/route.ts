@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,8 +8,7 @@ import {
 } from "@/lib/api/api-response";
 
 // DELETE /api/cart/clear - Clear user's cart
-export async function DELETE(request: NextRequest) {
-  // eslint-disable-line @typescript-eslint/no-unused-vars
+export async function DELETE() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
