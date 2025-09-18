@@ -6,6 +6,47 @@ import { verifyAccessToken } from "@/lib/auth/jwt";
 const ROLES = ["USER", "STAFF", "MANAGER", "ADMIN"] as const;
 type Role = (typeof ROLES)[number];
 
+/**
+ * Middleware function to verify if the user has admin or manager role
+ * @param request NextRequest object
+ * @returns NextResponse or undefined if user is authorized
+ */
+export async function requireAdminOrManager(request: Request) {
+  const token = (
+    request as unknown as {
+      cookies?: { get: (name: string) => { value: string } | undefined };
+    }
+  ).cookies?.get("accessToken")?.value;
+
+  if (!token) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
+  }
+
+  const decoded = verifyAccessToken(token);
+
+  if (!decoded) {
+    return NextResponse.json(
+      { error: "Invalid or expired token" },
+      { status: 401 },
+    );
+  }
+
+  const userRole = decoded.role as Role;
+
+  if (userRole !== "ADMIN" && userRole !== "MANAGER") {
+    return NextResponse.json(
+      { error: "Insufficient permissions" },
+      { status: 403 },
+    );
+  }
+
+  // If we get here, the user is authorized
+  return NextResponse.next();
+}
+
 export const config = {
   matcher: [
     /*
