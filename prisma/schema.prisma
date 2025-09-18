@@ -1,0 +1,526 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== ENUMS ==========
+enum Role {
+  USER
+  ADMIN
+  MANAGER
+  STAFF
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  PAYPAL
+  STRIPE
+  GCASH
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum InventoryType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  RETURN
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+  FREE_SHIPPING
+}
+
+enum LoyaltyType {
+  EARN
+  REDEEM
+  ADJUSTMENT
+}
+
+enum ShipmentCarrier {
+  LBC
+  DHL
+  FEDEX
+  GRAB
+  LALAMOVE
+}
+
+enum ShipmentStatus {
+  LABEL_CREATED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PROMOTION
+  SYSTEM
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  REFUNDED
+  REPLACED
+}
+
+enum BannerPosition {
+  HOMEPAGE
+  CATEGORY_PAGE
+  CHECKOUT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ========== MODELS ==========
+model User {
+  id            String    @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  phone         String?
+  dateOfBirth   DateTime?
+  isVerified    Boolean   @default(false)
+  loyaltyPoints Int       @default(0)
+  profileImage  String?
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  addresses           Address[]
+  orders              Order[]
+  cart                Cart?
+  wishlist            Wishlist?
+  reviews             Review[]
+  loyaltyTransactions LoyaltyTransaction[]
+  notifications       Notification[]
+  assignedTickets     SupportTicket[]      @relation("AssignedTickets")
+  auditLogs           AuditLog[]
+  productReturns      ProductReturn[]
+  supportTickets      SupportTicket[]      @relation("UserTickets")
+  inventoryLogs       InventoryLog[]
+  ticketResponses     TicketResponse[]
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  street     String
+  city       String
+  state      String
+  postalCode String
+  country    String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  orders Order[]
+}
+
+model Product {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  description     String    @db.Text
+  price           Float
+  stock           Int
+  sku             String    @unique
+  barcode         String?
+  weight          Float?
+  dimensions      String?
+  expiryDate      DateTime?
+  images          Json      @default("[]")
+  isFeatured      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  tags            String    @default("")
+  metaTitle       String?
+  metaDescription String?
+
+  // Relations
+  category   Category  @relation(fields: [categoryId], references: [id])
+  categoryId String
+  brand      Brand?    @relation(fields: [brandId], references: [id])
+  brandId    String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  supplierId String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  reviews        Review[]
+  inventoryLogs  InventoryLog[]
+  orderItems     OrderItem[]
+  cartItems      CartItem[]
+  wishlistItems  WishlistItem[]
+  productReturns ProductReturn[]
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String? @db.Text
+  image       String?
+  isActive    Boolean @default(true)
+
+  // Self-relation for subcategories
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  parentId String?
+  children Category[] @relation("CategoryToCategory")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products Product[]
+  banners  Banner[]
+}
+
+model Brand {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  description     String?   @db.Text
+  logo            String?
+  website         String?
+  countryOfOrigin String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  products        Product[]
+}
+
+model Supplier {
+  id           String    @id @default(cuid())
+  name         String
+  contactName  String?
+  contactEmail String
+  contactPhone String?
+  address      String?
+  country      String?
+  taxId        String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  products     Product[]
+}
+
+model InventoryLog {
+  id          String        @id @default(cuid())
+  product     Product       @relation(fields: [productId], references: [id])
+  productId   String
+  type        InventoryType
+  quantity    Int
+  note        String?       @db.Text
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+  createdById String?
+  createdAt   DateTime      @default(now())
+}
+
+model Wishlist {
+  id        String         @id @default(cuid())
+  user      User           @relation(fields: [userId], references: [id])
+  userId    String         @unique
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+  wishlistId String
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  String
+  addedAt    DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+model Cart {
+  id          String     @id @default(cuid())
+  user        User       @relation(fields: [userId], references: [id])
+  userId      String     @unique
+  items       CartItem[]
+  total       Float      @default(0)
+  lastUpdated DateTime   @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model CartItem {
+  id          String   @id @default(cuid())
+  cart        Cart     @relation(fields: [cartId], references: [id])
+  cartId      String
+  product     Product  @relation(fields: [productId], references: [id])
+  productId   String
+  quantity    Int
+  priceAtTime Float
+  addedAt     DateTime @default(now())
+
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id                String        @id @default(cuid())
+  user              User          @relation(fields: [userId], references: [id])
+  userId            String
+  items             OrderItem[]
+  subtotal          Float
+  tax               Float
+  shippingFee       Float
+  discount          Float         @default(0)
+  total             Float
+  status            OrderStatus   @default(PENDING)
+  paymentMethod     PaymentMethod
+  shippingAddress   Address       @relation(fields: [shippingAddressId], references: [id])
+  shippingAddressId String
+  billingAddress    String?
+  trackingNumber    String?
+  notes             String?       @db.Text
+  estimatedDelivery DateTime?
+  deliveredAt       DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  payment        Payment[]
+  shipments      Shipment[]
+  productReturns ProductReturn[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Float
+  discount  Float?  @default(0)
+  tax       Float?  @default(0)
+
+  // Relations
+  productReturn ProductReturn? @relation("OrderItemReturn")
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  order            Order         @relation(fields: [orderId], references: [id])
+  orderId          String
+  amount           Float
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  transactionId    String?
+  provider         String?
+  providerResponse Json?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  product      Product  @relation(fields: [productId], references: [id])
+  productId    String
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  rating       Int
+  comment      String?  @db.Text
+  helpfulVotes Int      @default(0)
+  isApproved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([productId, userId])
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  description    String?      @db.Text
+  discountType   DiscountType
+  discountValue  Float
+  minPurchase    Float?       @default(0)
+  maxRedemptions Int?
+  timesRedeemed  Int          @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// ========== LOYALTY & REWARDS ==========
+model LoyaltyTransaction {
+  id          String      @id @default(cuid())
+  user        User        @relation(fields: [userId], references: [id])
+  userId      String
+  type        LoyaltyType
+  points      Int
+  description String?     @db.Text
+  createdAt   DateTime    @default(now())
+}
+
+// ========== SHIPPING ==========
+model Shipment {
+  id             String          @id @default(cuid())
+  order          Order           @relation(fields: [orderId], references: [id])
+  orderId        String
+  carrier        ShipmentCarrier
+  trackingNumber String?
+  status         ShipmentStatus  @default(LABEL_CREATED)
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// ========== NOTIFICATIONS ==========
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+// ========== AUDIT LOGGING ==========
+model AuditLog {
+  id        String      @id @default(cuid())
+  user      User?       @relation(fields: [userId], references: [id])
+  userId    String?
+  action    AuditAction
+  entity    String
+  entityId  String
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  ipAddress String?
+  userAgent String?
+}
+
+// ========== RETURNS ==========
+model ProductReturn {
+  id          String       @id @default(cuid())
+  order       Order        @relation(fields: [orderId], references: [id])
+  orderId     String
+  product     Product      @relation(fields: [productId], references: [id])
+  productId   String
+  user        User         @relation(fields: [userId], references: [id])
+  userId      String
+  reason      String       @db.Text
+  status      ReturnStatus @default(REQUESTED)
+  orderItem   OrderItem?   @relation("OrderItemReturn", fields: [orderItemId], references: [id])
+  orderItemId String?      @unique
+  notes       String?      @db.Text
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// ========== MARKETING ==========
+model Banner {
+  id        String         @id @default(cuid())
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  position  BannerPosition
+  isActive  Boolean        @default(true)
+  startDate DateTime
+  endDate   DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Relations
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+}
+
+// ========== SUPPORT ==========
+model SupportTicket {
+  id           String         @id @default(cuid())
+  user         User           @relation("UserTickets", fields: [userId], references: [id])
+  userId       String
+  subject      String
+  message      String         @db.Text
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  assignedTo   User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  assignedToId String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  responses TicketResponse[]
+}
+
+model TicketResponse {
+  id         String        @id @default(cuid())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id])
+  ticketId   String
+  user       User          @relation(fields: [userId], references: [id])
+  userId     String
+  message    String        @db.Text
+  isInternal Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+}
