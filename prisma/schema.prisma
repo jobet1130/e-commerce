@@ -142,7 +142,7 @@ model User {
   addresses           Address[]
   orders              Order[]
   cart                Cart?
-  wishlist            Wishlist?
+  wishlists           Wishlist[]
   reviews             Review[]
   loyaltyTransactions LoyaltyTransaction[]
   notifications       Notification[]
@@ -168,7 +168,8 @@ model Address {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  orders Order[]
+  shippingOrders Order[] @relation("ShippingAddress")
+  billingOrders  Order[]  @relation("BillingAddress")
 }
 
 model Product {
@@ -177,6 +178,7 @@ model Product {
   slug            String    @unique
   description     String    @db.Text
   price           Float
+  originalPrice   Float
   stock           Int
   sku             String    @unique
   barcode         String?
@@ -189,6 +191,8 @@ model Product {
   tags            String    @default("")
   metaTitle       String?
   metaDescription String?
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
 
   // Relations
   category   Category  @relation(fields: [categoryId], references: [id])
@@ -275,21 +279,39 @@ model InventoryLog {
 }
 
 model Wishlist {
-  id        String         @id @default(cuid())
-  user      User           @relation(fields: [userId], references: [id])
-  userId    String         @unique
-  items     WishlistItem[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id          String         @id @default(cuid())
+  name        String         @default("My Wishlist")
+  description String?        @db.Text
+  isDefault   Boolean        @default(false)
+  isPublic    Boolean        @default(false)
+  isDeleted   Boolean        @default(false)
+  notes       String?        @db.Text
+  rating      Float?         @default(0) // Rating from 0 to 5
+  
+  // Relations
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  items       WishlistItem[]
+  
+  // Timestamps
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Indexes
+  @@unique([userId, name], name: "wishlist_user_name_unique")
+  @@index([userId])
 }
 
 model WishlistItem {
-  id         String   @id @default(cuid())
-  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+  id         String    @id @default(cuid())
+  wishlist   Wishlist  @relation(fields: [wishlistId], references: [id])
   wishlistId String
-  product    Product  @relation(fields: [productId], references: [id])
+  product    Product   @relation(fields: [productId], references: [id])
   productId  String
-  addedAt    DateTime @default(now())
+  rating     Int?      @default(dbgenerated("NULL")) // Rating from 1 to 5 stars (validated in application code)
+  notes      String?   @db.Text
+  addedAt    DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([wishlistId, productId])
 }
@@ -330,10 +352,12 @@ model Order {
   total             Float
   status            OrderStatus   @default(PENDING)
   paymentMethod     PaymentMethod
-  shippingAddress   Address       @relation(fields: [shippingAddressId], references: [id])
+  shippingAddress   Address       @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
   shippingAddressId String
-  billingAddress    String?
+  billingAddress    Address?      @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  billingAddressId  String?
   trackingNumber    String?
+  carrier           String?       // Shipping carrier (e.g., LBC, DHL, FedEx)
   notes             String?       @db.Text
   estimatedDelivery DateTime?
   deliveredAt       DateTime?
@@ -346,6 +370,9 @@ model Order {
   payment        Payment[]
   shipments      Shipment[]
   productReturns ProductReturn[]
+  coupon         Coupon?      @relation(fields: [couponId], references: [id])
+  couponId       String?
+
 }
 
 model OrderItem {
@@ -406,6 +433,9 @@ model Coupon {
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  orders         Order[]
 }
 
 // ========== LOYALTY & REWARDS ==========

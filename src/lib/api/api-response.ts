@@ -18,17 +18,33 @@ export function successResponse<T = unknown>(
   );
 }
 
+type CustomErrorData = {
+  outOfStockItems?: Array<{
+    productId: string;
+    name: string;
+    available: number;
+  }>;
+  [key: string]: unknown;
+};
+
+type ErrorObject =
+  | Record<string, string | string[] | ZodErrorFormat>
+  | ZodErrorFormat
+  | CustomErrorData;
+
 export function errorResponse(
   message: string,
   status: number = 400,
-  errors: Record<string, string> = {},
+  errors: ErrorObject = {},
   options: ApiResponseOptions = {},
 ) {
   return NextResponse.json(
     {
       success: false,
       error: message,
-      ...(Object.keys(errors).length > 0 && { errors }),
+      ...(Object.keys(errors).length > 0 && {
+        errors: errors as Record<string, unknown>,
+      }),
     },
     {
       status,
@@ -45,9 +61,14 @@ export function forbiddenResponse(message: string = "Forbidden") {
   return errorResponse(message, 403);
 }
 
+type ZodErrorFormat = {
+  _errors?: string[];
+  [key: string]: string | string[] | ZodErrorFormat | undefined;
+};
+
 export function badRequestResponse(
   message: string = "Bad request",
-  errors: Record<string, string> = {},
+  errors: ErrorObject = {},
 ) {
   return errorResponse(message, 400, errors);
 }

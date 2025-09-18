@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `product` ADD COLUMN `rating` DOUBLE NOT NULL DEFAULT 0,
+    ADD COLUMN `reviewCount` INTEGER NOT NULL DEFAULT 0;
