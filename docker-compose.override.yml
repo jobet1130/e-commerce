@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      target: deps
+    command: npm run dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=development-secret
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
+  db:
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-ecommerce_dev}
+      MYSQL_USER: ${DB_USER:-devuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-devpassword}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prisma-migrate:
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=mysql://${DB_USER:-devuser}:${DB_PASSWORD:-devpassword}@db:3306/${DB_NAME:-ecommerce_dev}
+
+volumes:
+  mysql_dev_data:

@@ -1,0 +1,68 @@
+# Dependencies
+node_modules
+
+# Build files
+.next
+out
+build
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+.DS_Store
+*.pem
+
+# IDE
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Testing
+coverage
+
+# Misc
+.cache
+dist
+.tmp
+.temp
+
+# Prisma
+prisma/migrations
+prisma/dev.db
+
+# Optional: Uncomment if you don't want to include the entire project
+# and only include necessary files
+# !package.json
+# !package-lock.json
+# !next.config.js
+# !tsconfig.json
+# !prisma/schema.prisma
+# !src/**/*
+# !public/**/*
